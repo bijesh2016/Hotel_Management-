@@ -1,251 +1,109 @@
-import { useCallback, useEffect, useState } from 'react';
-import { notificationApi } from '../../api/api';
-import { useAuth } from '../../context/AuthContext';
-
-const emptyForm = {
-  title: '',
-  message: '',
-  type: 'info',
-  recipient_type: 'all',
-};
+import { useState } from 'react';
+import { useSync } from '../../context/SyncContext';
 
 export default function Notifications() {
-  const { isAdmin, isHotelOwner } = useAuth();
-  const [notifications, setNotifications] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState(emptyForm);
-  const [saving, setSaving] = useState(false);
+  const { notifications, sendBroadcastNotification, markNotificationRead, clearNotifications } = useSync();
 
-  const loadNotifications = useCallback(async () => {
-    setLoading(true);
-    try {
-      const data = await notificationApi.getAll();
-      setNotifications(Array.isArray(data) ? data : []);
-    } catch (err) {
-      setError(err.message);
-      setNotifications([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const [title, setTitle] = useState('');
+  const [message, setMessage] = useState('');
 
-  useEffect(() => {
-    loadNotifications();
-  }, [loadNotifications]);
-
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const openCreate = () => {
-    setForm(emptyForm);
-    setShowForm(true);
-  };
-
-  const handleSubmit = async (e) => {
+  const handleSend = (e) => {
     e.preventDefault();
-    setSaving(true);
-    setError('');
-    try {
-      await notificationApi.create(form);
-      setShowForm(false);
-      loadNotifications();
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setSaving(false);
-    }
-  };
+    if (!title || !message) return;
 
-  const handleMarkAsRead = async (id) => {
-    try {
-      await notificationApi.markAsRead(id);
-      loadNotifications();
-    } catch (err) {
-      setError(err.message);
-    }
-  };
-
-  const handleDelete = async (id) => {
-    if (!isAdmin || !window.confirm('Delete this notification?')) return;
-    try {
-      await notificationApi.delete(id);
-      loadNotifications();
-    } catch (err) {
-      setError(err.message);
-    }
-  };
-
-  const getTypeColor = (type) => {
-    switch (type) {
-      case 'info':
-        return 'bg-blue-100 text-blue-700';
-      case 'success':
-        return 'bg-emerald-100 text-emerald-700';
-      case 'warning':
-        return 'bg-amber-100 text-amber-700';
-      case 'error':
-        return 'bg-red-100 text-red-700';
-      default:
-        return 'bg-slate-100 text-slate-700';
-    }
-  };
-
-  const getTypeIcon = (type) => {
-    switch (type) {
-      case 'info':
-        return 'ℹ️';
-      case 'success':
-        return '✅';
-      case 'warning':
-        return '⚠️';
-      case 'error':
-        return '❌';
-      default:
-        return '📢';
-    }
+    sendBroadcastNotification(title, message);
+    setTitle('');
+    setMessage('');
   };
 
   return (
-    <div>
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="bg-slate-900/90 backdrop-blur-xl p-6 rounded-3xl border border-slate-800 shadow-xl flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-slate-900">Notifications</h2>
-          <p className="text-sm text-slate-500">Send and manage guest notifications</p>
+          <h2 className="text-2xl font-bold text-white font-display">System Notifications Center</h2>
+          <p className="text-xs text-slate-400 mt-1">Broadcast real-time push alerts to user portals and admin interfaces.</p>
         </div>
-        {(isAdmin || isHotelOwner) && (
-          <button type="button" onClick={openCreate} className="btn-primary !py-2.5">
-            + Send Notification
-          </button>
-        )}
+
+        <button
+          onClick={clearNotifications}
+          className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-300 transition border border-slate-700"
+        >
+          Clear History
+        </button>
       </div>
 
-      {error && (
-        <div className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-600">{error}</div>
-      )}
-
-      {showForm && (
-        <div className="mb-6 card-surface p-6">
-          <h3 className="font-semibold text-slate-800">Send New Notification</h3>
-          <form onSubmit={handleSubmit} className="mt-4 grid gap-4 sm:grid-cols-2">
+      {/* Broadcast Creator */}
+      <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-4">
+        <h3 className="text-lg font-bold text-white">Broadcast New Live Alert</h3>
+        <form onSubmit={handleSend} className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+          <div>
+            <label className="block text-slate-400 font-bold mb-1 uppercase">Title</label>
             <input
-              name="title"
-              value={form.title}
-              onChange={handleChange}
-              placeholder="Notification Title"
-              className="input-field"
+              type="text"
               required
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="e.g. Weather Advisory or Special Promotion"
+              className="w-full rounded-xl bg-slate-950 border border-slate-800 p-3 text-white outline-none focus:border-teal-400"
             />
-            <select name="type" value={form.type} onChange={handleChange} className="input-field">
-              <option value="info">Info</option>
-              <option value="success">Success</option>
-              <option value="warning">Warning</option>
-              <option value="error">Error</option>
-            </select>
-            <select
-              name="recipient_type"
-              value={form.recipient_type}
-              onChange={handleChange}
-              className="input-field"
-            >
-              <option value="all">All Users</option>
-              <option value="customers">Customers Only</option>
-              <option value="hotel_owners">Hotel Owners Only</option>
-            </select>
-            <textarea
-              name="message"
-              value={form.message}
-              onChange={handleChange}
-              placeholder="Message"
-              rows={4}
-              className="input-field sm:col-span-2 resize-none"
-              required
-            />
-            <div className="sm:col-span-2 flex gap-3">
-              <button type="submit" disabled={saving} className="btn-primary disabled:opacity-60">
-                {saving ? 'Sending...' : 'Send Notification'}
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowForm(false)}
-                className="rounded-lg border border-slate-200 px-6 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50"
-              >
-                Cancel
+          </div>
+
+          <div className="md:col-span-2">
+            <label className="block text-slate-400 font-bold mb-1 uppercase">Notification Message</label>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                required
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                placeholder="Message body to be broadcast across all user browser tabs..."
+                className="w-full rounded-xl bg-slate-950 border border-slate-800 p-3 text-white outline-none focus:border-teal-400"
+              />
+              <button type="submit" className="btn-accent py-3 px-6 text-xs font-bold shrink-0">
+                📢 Transmit Alert
               </button>
             </div>
-          </form>
-        </div>
-      )}
+          </div>
+        </form>
+      </div>
 
-      {loading ? (
-        <p className="text-slate-500">Loading notifications...</p>
-      ) : (
-        <div className="space-y-4">
-          {notifications.map((notification) => (
-            <div
-              key={notification.id}
-              className={`card-surface p-6 transition hover:shadow-md ${
-                !notification.read ? 'border-l-4 border-l-primary-500' : ''
-              }`}
-            >
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex items-start gap-3 flex-1">
-                  <span className="text-2xl">{getTypeIcon(notification.type)}</span>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-1">
-                      <h3 className="font-semibold text-slate-800">{notification.title}</h3>
-                      <span
-                        className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium capitalize ${getTypeColor(
-                          notification.type
-                        )}`}
-                      >
-                        {notification.type || 'info'}
-                      </span>
-                      {!notification.read && (
-                        <span className="inline-flex rounded-full bg-primary-100 px-2.5 py-1 text-xs font-medium text-primary-700">
-                          New
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-slate-600 text-sm mb-2">{notification.message}</p>
-                    <p className="text-xs text-slate-400">
-                      {notification.created_at ? new Date(notification.created_at).toLocaleString() : 'Unknown date'}
-                    </p>
-                  </div>
+      {/* Notifications List */}
+      <div className="space-y-3">
+        {notifications.map((n) => (
+          <div
+            key={n.id}
+            onClick={() => markNotificationRead(n.id)}
+            className={`p-5 rounded-3xl border text-xs cursor-pointer transition flex items-center justify-between gap-4 ${
+              n.read
+                ? 'bg-slate-950/40 border-slate-800/80 text-slate-400'
+                : 'bg-slate-900/90 border-primary-500/30 text-white shadow-lg shadow-primary-950/30'
+            }`}
+          >
+            <div className="flex items-start gap-3">
+              <span className="text-2xl mt-0.5">🔔</span>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h4 className="font-bold text-sm text-teal-300">{n.title}</h4>
+                  {!n.read && (
+                    <span className="bg-rose-500/20 text-rose-400 border border-rose-500/30 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                      UNREAD
+                    </span>
+                  )}
                 </div>
-                <div className="flex gap-2">
-                  {!notification.read && (
-                    <button
-                      type="button"
-                      onClick={() => handleMarkAsRead(notification.id)}
-                      className="text-primary-700 hover:text-primary-600 font-medium text-xs"
-                    >
-                      Mark Read
-                    </button>
-                  )}
-                  {isAdmin && (
-                    <button
-                      type="button"
-                      onClick={() => handleDelete(notification.id)}
-                      className="text-red-600 hover:text-red-500 font-medium text-xs"
-                    >
-                      Delete
-                    </button>
-                  )}
+                <p className="mt-1 leading-relaxed">{n.message}</p>
+                <div className="mt-1.5 text-[10px] text-slate-500 font-mono">
+                  {new Date(n.timestamp || Date.now()).toLocaleString()}
                 </div>
               </div>
             </div>
-          ))}
-          {notifications.length === 0 && (
-            <div className="card-surface p-12 text-center">
-              <p className="text-slate-500">No notifications found.</p>
-            </div>
-          )}
-        </div>
-      )}
+
+            {!n.read && (
+              <span className="text-xs text-teal-400 font-bold hover:underline shrink-0">Mark Read</span>
+            )}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
