@@ -1,226 +1,165 @@
-import { useCallback, useEffect, useState } from 'react';
-import { facilityApi } from '../../api/api';
-import { useAuth } from '../../context/AuthContext';
+import { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 
-const emptyForm = {
-  name: '',
-  description: '',
-  icon: '',
-  category: 'general',
-};
+const SEED_FACILITIES = [
+  { id: 1, name: 'Free High-Speed Wi-Fi', icon: '📶', category: 'Connectivity', description: 'Gigabit fiber optic connection in all suites and public lounges.' },
+  { id: 2, name: 'Infinity Pool & Spa', icon: '🏊', category: 'Wellness', description: 'Heated outdoor panoramic infinity pool looking onto mountain peaks.' },
+  { id: 3, name: 'Fine Dining Restaurant', icon: '🍽️', category: 'Dining', description: 'Multi-cuisine gourmet dining with organic Himalayan ingredients.' },
+  { id: 4, name: 'Helipad Access', icon: '🚁', category: 'Transport', description: 'Private direct helipad transfers to Everest Base Camp.' },
+  { id: 5, name: 'Elephant & Jungle Safaris', icon: '🐘', category: 'Adventure', description: 'Guided jungle excursions and wildlife viewing safaris in Chitwan.' },
+  { id: 6, name: '24/7 Royal Butler', icon: '🤵', category: 'Service', description: 'Dedicated personal concierge and butler assistance for presidential suites.' }
+];
 
 export default function Facilities() {
-  const { isAdmin, isHotelOwner } = useAuth();
-  const [facilities, setFacilities] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState(emptyForm);
-  const [editingId, setEditingId] = useState(null);
-  const [saving, setSaving] = useState(false);
+  const [facilities, setFacilities] = useState(SEED_FACILITIES);
+  const [showModal, setShowModal] = useState(false);
+  const [name, setName] = useState('');
+  const [icon, setIcon] = useState('✨');
+  const [category, setCategory] = useState('Wellness');
+  const [description, setDescription] = useState('');
 
-  const loadFacilities = useCallback(async () => {
-    setLoading(true);
-    try {
-      const data = await facilityApi.getAll();
-      setFacilities(Array.isArray(data) ? data : []);
-    } catch (err) {
-      setError(err.message);
-      setFacilities([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    loadFacilities();
-  }, [loadFacilities]);
-
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const openCreate = () => {
-    setForm(emptyForm);
-    setEditingId(null);
-    setShowForm(true);
-  };
-
-  const openEdit = (facility) => {
-    setForm({
-      name: facility.name || '',
-      description: facility.description || '',
-      icon: facility.icon || '',
-      category: facility.category || 'general',
-    });
-    setEditingId(facility.id);
-    setShowForm(true);
-  };
-
-  const handleSubmit = async (e) => {
+  const handleAdd = (e) => {
     e.preventDefault();
-    setSaving(true);
-    setError('');
-    try {
-      if (editingId) {
-        await facilityApi.update(editingId, form);
-      } else {
-        await facilityApi.create(form);
-      }
-      setShowForm(false);
-      loadFacilities();
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setSaving(false);
-    }
-  };
+    if (!name) return;
 
-  const handleDelete = async (id) => {
-    if (!isAdmin || !window.confirm('Delete this facility?')) return;
-    try {
-      await facilityApi.delete(id);
-      loadFacilities();
-    } catch (err) {
-      setError(err.message);
-    }
-  };
+    const newFacility = {
+      id: Date.now(),
+      name,
+      icon,
+      category,
+      description: description || 'Premium resort amenity provided for all guests.'
+    };
 
-  const getCategoryColor = (category) => {
-    switch (category) {
-      case 'room':
-        return 'bg-blue-100 text-blue-700';
-      case 'dining':
-        return 'bg-amber-100 text-amber-700';
-      case 'wellness':
-        return 'bg-emerald-100 text-emerald-700';
-      case 'service':
-        return 'bg-violet-100 text-violet-700';
-      default:
-        return 'bg-slate-100 text-slate-700';
-    }
+    setFacilities([newFacility, ...facilities]);
+    setName('');
+    setDescription('');
+    setShowModal(false);
   };
 
   return (
-    <div>
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="bg-slate-900/90 backdrop-blur-xl p-6 rounded-3xl border border-slate-800 shadow-xl flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-slate-900">Facilities</h2>
-          <p className="text-sm text-slate-500">Manage hotel amenities and facilities</p>
+          <h2 className="text-2xl font-bold text-white font-display">Resort Facilities & Amenities</h2>
+          <p className="text-xs text-slate-400 mt-1">Configure global hotel amenities, spa features, and dining offerings.</p>
         </div>
-        {(isAdmin || isHotelOwner) && (
-          <button type="button" onClick={openCreate} className="btn-primary !py-2.5">
-            + Add Facility
-          </button>
-        )}
+
+        <button
+          onClick={() => setShowModal(true)}
+          className="btn-accent py-2.5 px-5 text-xs font-bold shadow-lg shadow-accent-500/20"
+        >
+          + Add Amenity
+        </button>
       </div>
 
-      {error && (
-        <div className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-600">{error}</div>
-      )}
+      {/* Facilities Grid */}
+      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        {facilities.map((f) => (
+          <div
+            key={f.id}
+            className="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-3 hover:border-slate-700 transition flex flex-col justify-between"
+          >
+            <div>
+              <div className="flex items-center justify-between">
+                <div className="w-12 h-12 rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-center text-2xl">
+                  {f.icon}
+                </div>
+                <span className="text-[10px] uppercase font-bold text-teal-400 bg-teal-500/10 border border-teal-500/30 px-2.5 py-0.5 rounded-full">
+                  {f.category}
+                </span>
+              </div>
 
-      {showForm && (
-        <div className="mb-6 card-surface p-6">
-          <h3 className="font-semibold text-slate-800">{editingId ? 'Edit Facility' : 'New Facility'}</h3>
-          <form onSubmit={handleSubmit} className="mt-4 grid gap-4 sm:grid-cols-2">
-            <input
-              name="name"
-              value={form.name}
-              onChange={handleChange}
-              placeholder="Facility Name"
-              className="input-field"
-              required
-            />
-            <input
-              name="icon"
-              value={form.icon}
-              onChange={handleChange}
-              placeholder="Icon (emoji or text)"
-              className="input-field"
-            />
-            <select name="category" value={form.category} onChange={handleChange} className="input-field">
-              <option value="general">General</option>
-              <option value="room">Room</option>
-              <option value="dining">Dining</option>
-              <option value="wellness">Wellness</option>
-              <option value="service">Service</option>
-            </select>
-            <textarea
-              name="description"
-              value={form.description}
-              onChange={handleChange}
-              placeholder="Description"
-              rows={3}
-              className="input-field sm:col-span-2 resize-none"
-            />
-            <div className="sm:col-span-2 flex gap-3">
-              <button type="submit" disabled={saving} className="btn-primary disabled:opacity-60">
-                {saving ? 'Saving...' : editingId ? 'Update' : 'Create'}
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowForm(false)}
-                className="rounded-lg border border-slate-200 px-6 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50"
-              >
-                Cancel
-              </button>
+              <h3 className="text-lg font-bold text-white mt-4 font-display">{f.name}</h3>
+              <p className="text-xs text-slate-400 mt-1 leading-relaxed">{f.description}</p>
             </div>
-          </form>
-        </div>
-      )}
+          </div>
+        ))}
+      </div>
 
-      {loading ? (
-        <p className="text-slate-500">Loading facilities...</p>
-      ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {facilities.map((facility) => (
-            <div key={facility.id} className="card-surface p-6 transition hover:shadow-md">
-              <div className="flex items-start justify-between mb-3">
-                <div className="flex items-center gap-3">
-                  {facility.icon && <span className="text-2xl">{facility.icon}</span>}
+      {/* Add Modal */}
+      <AnimatePresence>
+        {showModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl relative text-white"
+            >
+              <button onClick={() => setShowModal(false)} className="absolute top-6 right-6 text-slate-400 hover:text-white">
+                ✕
+              </button>
+              <h3 className="text-2xl font-bold font-display">Add Resort Amenity</h3>
+              <p className="text-xs text-slate-400 mt-0.5">Appears on hotel details and room cards.</p>
+
+              <form onSubmit={handleAdd} className="mt-6 space-y-4 text-xs">
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="col-span-2">
+                    <label className="block text-slate-400 font-bold mb-1 uppercase">Amenity Name</label>
+                    <input
+                      type="text"
+                      required
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder="e.g. Heated Sauna"
+                      className="w-full rounded-xl bg-slate-950 border border-slate-800 p-3 text-white outline-none focus:border-teal-400"
+                    />
+                  </div>
                   <div>
-                    <h3 className="font-semibold text-slate-800">{facility.name}</h3>
-                    <span
-                      className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium capitalize ${getCategoryColor(
-                        facility.category
-                      )}`}
-                    >
-                      {facility.category || 'general'}
-                    </span>
+                    <label className="block text-slate-400 font-bold mb-1 uppercase">Emoji Icon</label>
+                    <input
+                      type="text"
+                      value={icon}
+                      onChange={(e) => setIcon(e.target.value)}
+                      className="w-full rounded-xl bg-slate-950 border border-slate-800 p-3 text-center text-lg text-white outline-none focus:border-teal-400"
+                    />
                   </div>
                 </div>
-                {(isAdmin || isHotelOwner) && (
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => openEdit(facility)}
-                      className="text-primary-700 hover:text-primary-600 font-medium text-xs"
-                    >
-                      Edit
-                    </button>
-                    {isAdmin && (
-                      <button
-                        type="button"
-                        onClick={() => handleDelete(facility.id)}
-                        className="text-red-600 hover:text-red-500 font-medium text-xs"
-                      >
-                        Delete
-                      </button>
-                    )}
-                  </div>
-                )}
-              </div>
-              <p className="text-sm text-slate-600">{facility.description || 'No description'}</p>
-            </div>
-          ))}
-          {facilities.length === 0 && (
-            <div className="card-surface p-12 text-center sm:col-span-2 lg:col-span-3">
-              <p className="text-slate-500">No facilities found.</p>
-            </div>
-          )}
-        </div>
-      )}
+
+                <div>
+                  <label className="block text-slate-400 font-bold mb-1 uppercase">Category</label>
+                  <select
+                    value={category}
+                    onChange={(e) => setCategory(e.target.value)}
+                    className="w-full rounded-xl bg-slate-950 border border-slate-800 p-3 text-white outline-none focus:border-teal-400"
+                  >
+                    <option value="Wellness">Wellness & Spa</option>
+                    <option value="Dining">Dining & Bar</option>
+                    <option value="Adventure">Adventure & Tours</option>
+                    <option value="Service">Service & Concierge</option>
+                    <option value="Connectivity">Connectivity</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 font-bold mb-1 uppercase">Description</label>
+                  <textarea
+                    rows={3}
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    placeholder="Enter feature details..."
+                    className="w-full rounded-xl bg-slate-950 border border-slate-800 p-3 text-white outline-none focus:border-teal-400"
+                  />
+                </div>
+
+                <div className="flex justify-end gap-3 pt-3">
+                  <button
+                    type="button"
+                    onClick={() => setShowModal(false)}
+                    className="px-5 py-2.5 rounded-xl text-slate-400 font-semibold hover:bg-slate-800"
+                  >
+                    Cancel
+                  </button>
+                  <button type="submit" className="btn-accent py-2.5 px-6">
+                    ✨ Create Amenity
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
