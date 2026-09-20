@@ -1,5 +1,7 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
+import { SyncProvider } from './context/SyncContext';
+import ToastContainer from './components/ui/ToastContainer';
 import ProtectedRoute from './routes/ProtectedRoute';
 import PublicLayout from './components/layout/PublicLayout';
 import AdminLayout from './layouts/AdminLayout';
@@ -10,6 +12,7 @@ import Hotels from './pages/Hotels';
 import HotelSingle from './pages/HotelSingle';
 import Rooms from './pages/Rooms';
 import RoomSingle from './pages/RoomSingle';
+import MyBookings from './pages/MyBookings';
 import Contact from './pages/Contact';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -26,49 +29,54 @@ import Notifications from './pages/admin/Notifications';
 export default function App() {
   return (
     <AuthProvider>
-      <BrowserRouter>
-        <Routes>
-          <Route element={<PublicLayout />}>
-            <Route index element={<Home />} />
-            <Route path="about" element={<About />} />
-            <Route path="hotels" element={<Hotels />} />
-            <Route path="hotels/:id" element={<HotelSingle />} />
-            <Route path="services" element={<Services />} />
-            <Route path="rooms" element={<Rooms />} />
-            <Route path="rooms/:id" element={<RoomSingle />} />
-            <Route path="contact" element={<Contact />} />
-          </Route>
+      <SyncProvider>
+        <BrowserRouter>
+          <Routes>
+            <Route element={<PublicLayout />}>
+              <Route index element={<Home />} />
+              <Route path="about" element={<About />} />
+              <Route path="hotels" element={<Hotels />} />
+              <Route path="hotels/:id" element={<HotelSingle />} />
+              <Route path="services" element={<Services />} />
+              <Route path="rooms" element={<Rooms />} />
+              <Route path="rooms/:id" element={<RoomSingle />} />
+              <Route path="my-bookings" element={<MyBookings />} />
+              <Route path="contact" element={<Contact />} />
+            </Route>
 
-          <Route path="login" element={<Login />} />
-          <Route path="register" element={<Register />} />
+            <Route path="login" element={<Login />} />
+            <Route path="register" element={<Register />} />
 
-          <Route
-            path="admin"
-            element={
-              <ProtectedRoute roles={['admin', 'hotel_owner']}>
-                <AdminLayout />
-              </ProtectedRoute>
-            }
-          >
-            <Route index element={<Dashboard />} />
-            <Route path="hotels" element={<AdminHotels />} />
-            <Route path="rooms" element={<RoomsAdmin />} />
-            <Route path="bookings" element={<Bookings />} />
-            <Route path="payments" element={<Payments />} />
-            <Route path="reviews" element={<Reviews />} />
             <Route
-              path="users"
+              path="admin"
               element={
-                <ProtectedRoute roles={['admin']}>
-                  <Users />
+                <ProtectedRoute roles={['admin', 'hotel_owner']}>
+                  <AdminLayout />
                 </ProtectedRoute>
               }
-            />
-            <Route path="facilities" element={<Facilities />} />
-            <Route path="notifications" element={<Notifications />} />
-          </Route>
-        </Routes>
-      </BrowserRouter>
+            >
+              <Route index element={<Dashboard />} />
+              <Route path="hotels" element={<AdminHotels />} />
+              <Route path="rooms" element={<RoomsAdmin />} />
+              <Route path="bookings" element={<Bookings />} />
+              <Route path="payments" element={<Payments />} />
+              <Route path="reviews" element={<Reviews />} />
+              <Route
+                path="users"
+                element={
+                  <ProtectedRoute roles={['admin']}>
+                    <Users />
+                  </ProtectedRoute>
+                }
+              />
+              <Route path="facilities" element={<Facilities />} />
+              <Route path="notifications" element={<Notifications />} />
+            </Route>
+          </Routes>
+          <ToastContainer />
+        </BrowserRouter>
+      </SyncProvider>
     </AuthProvider>
   );
 }
+

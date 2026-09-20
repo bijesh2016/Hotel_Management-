@@ -1,34 +1,30 @@
-import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { hotelApi } from '../api/api';
+import { useSync } from '../context/SyncContext';
 import HotelCard from '../components/ui/HotelCard';
 import RoomCard from '../components/ui/RoomCard';
 import { HeroText, FadeIn, StaggerContainer, StaggerItem } from '../components/ui/Animate';
-import { FEATURED_HOTELS, IMAGES, ROOMS, SERVICES } from '../data/mockData';
+import { IMAGES, SERVICES } from '../data/mockData';
 import { useAuth } from '../context/AuthContext';
 
 export default function Home() {
   const { isAdmin, isHotelOwner } = useAuth();
-  const [hotels, setHotels] = useState(FEATURED_HOTELS);
+  const { hotels, rooms, reviews } = useSync();
+  const navigate = useNavigate();
 
-  useEffect(() => {
-    hotelApi.getAll()
-      .then((data) => {
-        if (Array.isArray(data) && data.length > 0) {
-          setHotels(data.map((h, i) => ({
-            ...FEATURED_HOTELS[i % FEATURED_HOTELS.length],
-            ...h,
-            image: h.image || FEATURED_HOTELS[i % FEATURED_HOTELS.length]?.image,
-          })));
-        }
-      })
-      .catch(() => {});
-  }, []);
+  const [searchCity, setSearchCity] = useState('');
+  const [searchGuests, setSearchGuests] = useState('2');
+
+  const handleSearchSubmit = (e) => {
+    e.preventDefault();
+    navigate(`/hotels?city=${encodeURIComponent(searchCity)}&guests=${searchGuests}`);
+  };
 
   return (
     <>
-      <section className="relative flex min-h-[90vh] items-center overflow-hidden">
+      {/* Hero Section */}
+      <section className="relative flex min-h-[92vh] items-center overflow-hidden">
         <motion.div
           initial={{ scale: 1.15 }}
           animate={{ scale: 1 }}
@@ -36,166 +32,189 @@ export default function Home() {
           className="absolute inset-0 bg-cover bg-center"
           style={{ backgroundImage: `url(${IMAGES.hero})` }}
         />
-        <div className="absolute inset-0 bg-gradient-to-r from-primary-900/95 via-primary-900/70 to-primary-800/40" />
-        <div className="absolute inset-0 mesh-gradient opacity-40" />
+        <div className="absolute inset-0 bg-gradient-to-r from-slate-950/95 via-slate-900/80 to-primary-950/40" />
+        <div className="absolute inset-0 mesh-gradient opacity-50" />
 
         <div className="absolute -right-20 top-20 h-72 w-72 rounded-full bg-primary-500/20 blur-3xl animate-float" />
         <div className="absolute -left-10 bottom-20 h-56 w-56 rounded-full bg-accent-500/15 blur-3xl animate-float" style={{ animationDelay: '2s' }} />
 
         <div className="relative z-10 mx-auto w-full max-w-7xl px-4 py-20 lg:px-8">
           <HeroText>
-            <p className="inline-block rounded-full border border-accent-400/30 bg-accent-500/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-widest text-accent-400 backdrop-blur-sm">
-              Welcome to Nepal Hotels
-            </p>
-          </HeroText>
-          <HeroText delay={0.15}>
-            <h1 className="mt-6 max-w-3xl font-display text-4xl font-bold leading-tight text-white md:text-6xl lg:text-7xl">
-              Book your stay in the{' '}
-              <span className="bg-gradient-to-r from-primary-300 via-accent-300 to-primary-200 bg-clip-text text-transparent">
-                heart of Nepal
-              </span>
-            </h1>
-          </HeroText>
-          <HeroText delay={0.3}>
-            <p className="mt-6 max-w-xl text-lg text-primary-100/90">
-              Luxury accommodations from the Himalayas to the Terai. Experience world-class hospitality with authentic Nepali warmth.
-            </p>
-          </HeroText>
-          <HeroText delay={0.45}>
-            <div className="mt-10 flex flex-wrap gap-4">
-              <Link to="/hotels" className="btn-primary">Explore Hotels</Link>
-              <Link to="/rooms" className="btn-outline">View Rooms</Link>
-              {(isAdmin || isHotelOwner) && (
-                <Link to="/admin" className="btn-accent">Admin Panel</Link>
-              )}
+            <div className="inline-flex items-center gap-2 rounded-full border border-accent-400/30 bg-accent-500/10 px-4 py-1.5 text-xs font-bold uppercase tracking-widest text-accent-400 backdrop-blur-md">
+              <span className="w-2 h-2 rounded-full bg-accent-400 animate-ping" />
+              Nepal Premier Hotel Collection
             </div>
           </HeroText>
 
+          <HeroText delay={0.15}>
+            <h1 className="mt-6 max-w-3xl font-display text-4xl font-extrabold leading-tight text-white md:text-6xl lg:text-7xl">
+              Experience Himalayan{' '}
+              <span className="bg-gradient-to-r from-teal-300 via-accent-300 to-amber-200 bg-clip-text text-transparent">
+                Royal Luxury
+              </span>
+            </h1>
+          </HeroText>
+
+          <HeroText delay={0.3}>
+            <p className="mt-6 max-w-xl text-lg text-slate-300/90 leading-relaxed font-light">
+              Panoramic mountain views, five-star heritage hospitality, and eco-wellness resorts synced in real-time.
+            </p>
+          </HeroText>
+
+          {/* Interactive Hero Search Card */}
+          <HeroText delay={0.4}>
+            <form
+              onSubmit={handleSearchSubmit}
+              className="mt-8 max-w-4xl rounded-3xl bg-white/10 p-3 sm:p-4 backdrop-blur-2xl border border-white/20 shadow-2xl grid grid-cols-1 sm:grid-cols-3 gap-3"
+            >
+              <div className="bg-white/90 rounded-2xl p-3 backdrop-blur-sm">
+                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">Destination</label>
+                <input
+                  type="text"
+                  placeholder="Kathmandu, Pokhara, Nagarkot..."
+                  value={searchCity}
+                  onChange={(e) => setSearchCity(e.target.value)}
+                  className="w-full bg-transparent text-sm font-semibold text-slate-900 outline-none placeholder:text-slate-400 mt-0.5"
+                />
+              </div>
+
+              <div className="bg-white/90 rounded-2xl p-3 backdrop-blur-sm">
+                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">Guests & Capacity</label>
+                <select
+                  value={searchGuests}
+                  onChange={(e) => setSearchGuests(e.target.value)}
+                  className="w-full bg-transparent text-sm font-semibold text-slate-900 outline-none mt-0.5"
+                >
+                  <option value="1">1 Guest (Single)</option>
+                  <option value="2">2 Guests (Couple / Deluxe)</option>
+                  <option value="4">4 Guests (Family Suite)</option>
+                </select>
+              </div>
+
+              <button type="submit" className="btn-accent rounded-2xl h-full py-4 text-sm font-bold shadow-xl shadow-accent-500/30 flex items-center justify-center gap-2">
+                🔍 Find Accommodations
+              </button>
+            </form>
+          </HeroText>
+
+          {/* Stats Bar */}
           <HeroText delay={0.6}>
-            <div className="mt-16 flex flex-wrap gap-8 border-t border-white/10 pt-10">
+            <div className="mt-14 flex flex-wrap gap-10 border-t border-white/10 pt-8">
               {[
-                { value: '50+', label: 'Hotels' },
-                { value: '200+', label: 'Rooms' },
-                { value: '4.9', label: 'Rating' },
+                { value: `${hotels.length}+`, label: 'Partner Hotels' },
+                { value: `${rooms.length}+`, label: 'Luxury Rooms' },
+                { value: '4.9 ★', label: 'Guest Rating' },
+                { value: '24/7', label: 'Live Concierge' }
               ].map((stat) => (
                 <div key={stat.label}>
-                  <p className="text-3xl font-bold text-white">{stat.value}</p>
-                  <p className="text-sm text-primary-300">{stat.label}</p>
+                  <p className="text-3xl font-extrabold text-white tracking-tight">{stat.value}</p>
+                  <p className="text-xs font-medium text-slate-300 mt-0.5">{stat.label}</p>
                 </div>
               ))}
             </div>
           </HeroText>
         </div>
-
-        <motion.div
-          animate={{ y: [0, 8, 0] }}
-          transition={{ repeat: Infinity, duration: 2 }}
-          className="absolute bottom-8 left-1/2 -translate-x-1/2 text-white/50"
-        >
-          <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
-          </svg>
-        </motion.div>
       </section>
 
-      <section className="mesh-gradient py-24">
+      {/* Featured Hotels */}
+      <section className="py-24 bg-slate-50">
         <div className="mx-auto max-w-7xl px-4 lg:px-8">
           <FadeIn>
-            <h2 className="section-heading">
-              Featured <span className="gradient-text">Hotels</span>
-            </h2>
-            <p className="mx-auto mt-4 max-w-2xl text-center text-slate-600">
-              Handpicked properties across Nepal&apos;s most sought-after destinations.
-            </p>
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-12">
+              <div>
+                <span className="text-xs font-bold text-primary-600 uppercase tracking-widest">Handpicked Destinations</span>
+                <h2 className="section-heading text-left mt-1">
+                  Featured <span className="gradient-text">Hotels & Resorts</span>
+                </h2>
+              </div>
+              <Link to="/hotels" className="btn-ghost self-start md:self-auto">
+                Explore All Hotels →
+              </Link>
+            </div>
           </FadeIn>
-          <div className="mt-14 grid gap-8 md:grid-cols-3">
+
+          <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
             {hotels.slice(0, 3).map((hotel, i) => (
-              <HotelCard key={hotel.id || i} hotel={hotel} index={i} />
+              <HotelCard key={hotel.id} hotel={hotel} index={i} />
             ))}
           </div>
-          <FadeIn className="mt-10 text-center">
-            <Link to="/hotels" className="btn-ghost">View All Hotels →</Link>
-          </FadeIn>
         </div>
       </section>
 
-      <section className="py-24">
+      {/* Featured Rooms Showcase */}
+      <section className="py-24 bg-white">
         <div className="mx-auto max-w-7xl px-4 lg:px-8">
           <FadeIn>
-            <h2 className="section-heading">
-              Featured <span className="gradient-text">Rooms</span>
-            </h2>
+            <div className="text-center max-w-2xl mx-auto mb-16">
+              <span className="text-xs font-bold text-teal-600 uppercase tracking-widest">Unrivaled Comfort</span>
+              <h2 className="section-heading mt-1">
+                Curated <span className="gradient-text">Suites & Rooms</span>
+              </h2>
+              <p className="text-slate-600 text-sm mt-3">
+                Experience panoramic mountain view terraces, private jacuzzis, and personalized butler assistance.
+              </p>
+            </div>
           </FadeIn>
-          <div className="mt-14 space-y-10">
-            {ROOMS.slice(0, 2).map((room, i) => (
+
+          <div className="space-y-8">
+            {rooms.slice(0, 2).map((room, i) => (
               <RoomCard key={room.id} room={room} index={i} />
             ))}
           </div>
-          <FadeIn className="mt-10 text-center">
-            <Link to="/rooms" className="btn-ghost">See All Rooms →</Link>
+
+          <FadeIn className="mt-12 text-center">
+            <Link to="/rooms" className="btn-primary py-3.5 px-8">
+              Browse All Available Rooms
+            </Link>
           </FadeIn>
         </div>
       </section>
 
-      <section className="mesh-gradient py-24">
-        <div className="mx-auto max-w-7xl px-4 lg:px-8">
-          <div className="grid gap-16 lg:grid-cols-2">
-            <FadeIn direction="left">
-              <div className="group relative overflow-hidden rounded-3xl shadow-2xl">
-                <div
-                  className="h-96 bg-cover bg-center transition-transform duration-700 group-hover:scale-105"
-                  style={{ backgroundImage: `url(${IMAGES.about})` }}
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-primary-900/60 to-transparent" />
-              </div>
-              <h2 className="mt-8 font-display text-3xl font-semibold text-slate-900">
-                The most recommended vacation rental
-              </h2>
-              <p className="mt-4 leading-relaxed text-slate-600">
-                From heritage palaces in Kathmandu to serene lakeside resorts in Pokhara, Nepal Hotels connects you with exceptional stays.
-              </p>
-            </FadeIn>
+      {/* Live Guest Reviews Carousel */}
+      <section className="py-24 bg-slate-900 text-white relative overflow-hidden">
+        <div className="absolute inset-0 mesh-gradient opacity-30" />
+        <div className="relative z-10 max-w-7xl mx-auto px-4 lg:px-8">
+          <FadeIn className="text-center max-w-2xl mx-auto mb-14">
+            <span className="text-xs font-bold text-accent-400 uppercase tracking-widest">Real Guest Experiences</span>
+            <h2 className="font-display text-3xl md:text-4xl font-bold mt-2">
+              What Travellers <span className="text-accent-400">Say About Us</span>
+            </h2>
+          </FadeIn>
 
-            <FadeIn direction="right" delay={0.2}>
-              <h2 className="font-display text-3xl font-semibold text-slate-900">
-                What we <span className="gradient-text">offer</span>
-              </h2>
-              <StaggerContainer className="mt-8 grid gap-4 sm:grid-cols-2">
-                {SERVICES.slice(0, 8).map((service) => (
-                  <StaggerItem key={service.title}>
-                    <div className="group flex gap-4 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm transition-all duration-300 hover:border-primary-200 hover:shadow-lg hover:shadow-primary-100/50">
-                      <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary-100 to-primary-50 text-xl transition group-hover:scale-110">
-                        {service.icon}
-                      </span>
-                      <div>
-                        <h3 className="font-semibold text-slate-800 text-sm">{service.title}</h3>
-                        <p className="mt-1 text-xs text-slate-500">{service.description}</p>
-                      </div>
-                    </div>
-                  </StaggerItem>
-                ))}
-              </StaggerContainer>
-            </FadeIn>
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {reviews.slice(0, 3).map((r, i) => (
+              <motion.div
+                key={r.id || i}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.4, delay: i * 0.1 }}
+                className="bg-slate-800/80 border border-slate-700/60 p-6 rounded-3xl backdrop-blur-sm shadow-xl"
+              >
+                <div className="flex items-center gap-1 text-amber-400 text-sm mb-3">
+                  {'★'.repeat(r.rating || 5)}
+                </div>
+                <p className="text-slate-300 text-sm italic leading-relaxed">&ldquo;{r.comment}&rdquo;</p>
+                <div className="mt-6 pt-4 border-t border-slate-700/50 flex justify-between items-center text-xs">
+                  <span className="font-bold text-white">{r.user_name}</span>
+                  <span className="text-slate-400 font-mono">{r.hotel_name}</span>
+                </div>
+              </motion.div>
+            ))}
           </div>
         </div>
       </section>
 
-      <section className="relative overflow-hidden py-28">
-        <div
-          className="absolute inset-0 bg-cover bg-center bg-fixed"
-          style={{ backgroundImage: `url(${IMAGES.hero})` }}
-        />
-        <div className="absolute inset-0 bg-gradient-to-br from-primary-900/90 via-primary-800/85 to-primary-900/90" />
-        <div className="absolute inset-0 animate-gradient bg-gradient-to-r from-primary-600/10 via-accent-500/10 to-primary-600/10" />
-
-        <FadeIn className="relative z-10 mx-auto max-w-3xl px-4 text-center text-white">
-          <h2 className="font-display text-3xl font-bold md:text-5xl">Ready to get started?</h2>
-          <p className="mt-6 text-lg text-primary-100">
-            Book your dream stay in a few clicks. Safe, secure, and backed by 24/7 support.
+      {/* Call To Action Banner */}
+      <section className="relative overflow-hidden py-28 bg-gradient-to-br from-primary-900 via-slate-900 to-teal-950 text-white text-center">
+        <FadeIn className="relative z-10 max-w-3xl mx-auto px-4">
+          <h2 className="font-display text-4xl md:text-5xl font-bold">Ready to Book Your Himalayan Escape?</h2>
+          <p className="mt-4 text-slate-300 text-lg font-light">
+            Instant booking confirmation, 100% price guarantee, and 24/7 travel concierge.
           </p>
-          <div className="mt-10 flex flex-wrap justify-center gap-4">
-            <Link to="/hotels" className="btn-primary">Book Now</Link>
-            <Link to="/contact" className="btn-outline">Contact Us</Link>
+          <div className="mt-8 flex flex-wrap justify-center gap-4">
+            <Link to="/rooms" className="btn-accent py-3.5 px-8 text-base">Book Your Stay Now</Link>
+            <Link to="/contact" className="btn-outline py-3.5 px-8 text-base">Talk to Concierge</Link>
           </div>
         </FadeIn>
       </section>
