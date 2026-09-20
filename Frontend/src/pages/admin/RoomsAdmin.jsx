@@ -1,244 +1,188 @@
-import { useCallback, useEffect, useState } from 'react';
-import { roomApi, hotelApi } from '../../api/api';
-import { useAuth } from '../../context/AuthContext';
+import { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useSync } from '../../context/SyncContext';
 
 const emptyForm = {
-  hotel_id: '',
-  room_type_id: '',
   room_number: '',
-  floor_number: '',
-  status: 'available',
+  room_type: 'Presidential Suite',
+  hotel_name: 'The Everest Luxury Resort',
+  hotel_id: 1,
+  price_per_night: 250,
+  capacity: 2,
+  description: 'Luxury suite with panoramic valley and mountain terrace view.',
+  image: 'https://images.unsplash.com/photo-1631049307264-da0ec9d70304?auto=format&fit=crop&w=800&q=80'
 };
 
 export default function RoomsAdmin() {
-  const { isAdmin, isHotelOwner } = useAuth();
-  const [rooms, setRooms] = useState([]);
-  const [hotels, setHotels] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [showForm, setShowForm] = useState(false);
+  const { rooms, hotels, createRoom } = useSync();
+  const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState(emptyForm);
-  const [editingId, setEditingId] = useState(null);
-  const [saving, setSaving] = useState(false);
-
-  const loadRooms = useCallback(async () => {
-    setLoading(true);
-    try {
-      const data = await roomApi.getAll();
-      setRooms(Array.isArray(data) ? data : []);
-    } catch (err) {
-      setError(err.message);
-      setRooms([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  const loadHotels = useCallback(async () => {
-    try {
-      const data = await hotelApi.getAll();
-      setHotels(Array.isArray(data) ? data : []);
-    } catch (err) {
-      console.error('Failed to load hotels:', err);
-    }
-  }, []);
-
-  useEffect(() => {
-    loadRooms();
-    loadHotels();
-  }, [loadRooms, loadHotels]);
-
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const openCreate = () => {
-    setForm(emptyForm);
-    setEditingId(null);
-    setShowForm(true);
-  };
-
-  const openEdit = (room) => {
-    setForm({
-      hotel_id: room.hotel_id || '',
-      room_type_id: room.room_type_id || '',
-      room_number: room.room_number || '',
-      floor_number: room.floor_number || '',
-      status: room.status || 'available',
-    });
-    setEditingId(room.id);
-    setShowForm(true);
-  };
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setSaving(true);
-    setError('');
-    try {
-      if (editingId) {
-        await roomApi.update(editingId, form);
-      } else {
-        await roomApi.create(form);
-      }
-      setShowForm(false);
-      loadRooms();
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setSaving(false);
-    }
-  };
+    setIsSubmitting(true);
 
-  const handleDelete = async (id) => {
-    if (!isAdmin || !window.confirm('Delete this room?')) return;
-    try {
-      await roomApi.delete(id);
-      loadRooms();
-    } catch (err) {
-      setError(err.message);
-    }
+    await createRoom({
+      ...form,
+      price_per_night: Number(form.price_per_night),
+      capacity: Number(form.capacity)
+    });
+
+    setIsSubmitting(false);
+    setShowModal(false);
+    setForm(emptyForm);
   };
 
   return (
-    <div>
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-900/90 backdrop-blur-xl p-6 rounded-3xl border border-slate-800 shadow-xl">
         <div>
-          <h2 className="text-2xl font-bold text-slate-900">Rooms</h2>
-          <p className="text-sm text-slate-500">Manage room inventory and availability</p>
+          <h2 className="text-2xl font-bold text-white font-display">Room Inventory & Availability</h2>
+          <p className="text-xs text-slate-400 mt-0.5">Manage suites, room pricing, capacities, and live availability status.</p>
         </div>
-        {(isAdmin || isHotelOwner) && (
-          <button type="button" onClick={openCreate} className="btn-primary !py-2.5">
-            + Add Room
-          </button>
-        )}
+
+        <button
+          onClick={() => setShowModal(true)}
+          className="btn-accent py-2.5 px-5 text-xs font-bold shadow-lg shadow-accent-500/20 shrink-0"
+        >
+          + Add New Room
+        </button>
       </div>
 
-      {error && (
-        <div className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-600">{error}</div>
-      )}
-
-      {showForm && (
-        <div className="mb-6 card-surface p-6">
-          <h3 className="font-semibold text-slate-800">{editingId ? 'Edit Room' : 'New Room'}</h3>
-          <form onSubmit={handleSubmit} className="mt-4 grid gap-4 sm:grid-cols-2">
-            <select
-              name="hotel_id"
-              value={form.hotel_id}
-              onChange={handleChange}
-              className="input-field"
-              required
-            >
-              <option value="">Select Hotel</option>
-              {hotels.map((hotel) => (
-                <option key={hotel.id} value={hotel.id}>
-                  {hotel.name}
-                </option>
-              ))}
-            </select>
-            <input
-              name="room_number"
-              value={form.room_number}
-              onChange={handleChange}
-              placeholder="Room Number"
-              className="input-field"
-              required
-            />
-            <input
-              name="floor_number"
-              value={form.floor_number}
-              onChange={handleChange}
-              placeholder="Floor Number"
-              className="input-field"
-              type="number"
-            />
-            <select
-              name="status"
-              value={form.status}
-              onChange={handleChange}
-              className="input-field"
-            >
-              <option value="available">Available</option>
-              <option value="occupied">Occupied</option>
-              <option value="maintenance">Maintenance</option>
-            </select>
-            <div className="sm:col-span-2 flex gap-3">
-              <button type="submit" disabled={saving} className="btn-primary disabled:opacity-60">
-                {saving ? 'Saving...' : editingId ? 'Update' : 'Create'}
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowForm(false)}
-                className="rounded-lg border border-slate-200 px-6 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50"
-              >
-                Cancel
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
-
-      {loading ? (
-        <p className="text-slate-500">Loading rooms...</p>
-      ) : (
-        <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
-          <table className="w-full text-sm">
-            <thead className="bg-slate-50 text-left text-xs font-semibold uppercase text-slate-500">
+      {/* Rooms Table */}
+      <div className="bg-slate-900/90 backdrop-blur-xl rounded-3xl border border-slate-800 shadow-xl overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs">
+            <thead className="bg-slate-950/80 text-slate-400 uppercase font-mono border-b border-slate-800">
               <tr>
-                <th className="px-6 py-4">Room Number</th>
-                <th className="px-6 py-4">Hotel</th>
-                <th className="px-6 py-4">Floor</th>
+                <th className="px-6 py-4">Room No</th>
+                <th className="px-6 py-4">Room Category</th>
+                <th className="px-6 py-4">Hotel Property</th>
+                <th className="px-6 py-4">Price / Night</th>
+                <th className="px-6 py-4">Capacity</th>
                 <th className="px-6 py-4">Status</th>
-                <th className="px-6 py-4">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-slate-800/60">
               {rooms.map((room) => (
-                <tr key={room.id} className="hover:bg-slate-50">
-                  <td className="px-6 py-4 font-medium text-slate-800">{room.room_number}</td>
-                  <td className="px-6 py-4 text-slate-600">
-                    {hotels.find((h) => h.id === room.hotel_id)?.name || 'Unknown'}
-                  </td>
-                  <td className="px-6 py-4 text-slate-600">{room.floor_number || '-'}</td>
+                <tr key={room.id} className="hover:bg-slate-800/40 transition">
+                  <td className="px-6 py-4 font-bold font-mono text-teal-400">{room.room_number || 'E-101'}</td>
                   <td className="px-6 py-4">
-                    <span
-                      className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${
-                        room.status === 'available'
-                          ? 'bg-emerald-100 text-emerald-700'
-                          : room.status === 'occupied'
-                          ? 'bg-amber-100 text-amber-700'
-                          : 'bg-red-100 text-red-700'
-                      }`}
-                    >
-                      {room.status || 'Unknown'}
+                    <div className="font-bold text-white">{room.room_type}</div>
+                    <div className="text-[11px] text-slate-400 line-clamp-1">{room.description}</div>
+                  </td>
+                  <td className="px-6 py-4 font-medium text-slate-300">{room.hotel_name}</td>
+                  <td className="px-6 py-4 font-extrabold text-white text-sm">${room.price_per_night}</td>
+                  <td className="px-6 py-4 text-slate-300">{room.capacity || 2} Guests</td>
+                  <td className="px-6 py-4">
+                    <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+                      ● {room.status || 'Available'}
                     </span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => openEdit(room)}
-                        className="text-primary-700 hover:text-primary-600 font-medium text-xs"
-                      >
-                        Edit
-                      </button>
-                      {isAdmin && (
-                        <button
-                          type="button"
-                          onClick={() => handleDelete(room.id)}
-                          className="text-red-600 hover:text-red-500 font-medium text-xs"
-                        >
-                          Delete
-                        </button>
-                      )}
-                    </div>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-      )}
+      </div>
+
+      {/* Add Room Modal */}
+      <AnimatePresence>
+        {showModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl relative text-white"
+            >
+              <button onClick={() => setShowModal(false)} className="absolute top-6 right-6 text-slate-400 hover:text-white">
+                ✕
+              </button>
+              <h3 className="text-2xl font-bold font-display">Add Room Listing</h3>
+              <p className="text-xs text-slate-400 mt-0.5">Will immediately synchronize with customer room search.</p>
+
+              <form onSubmit={handleSubmit} className="mt-6 space-y-4 text-xs">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-slate-400 font-bold mb-1 uppercase">Room Number</label>
+                    <input
+                      type="text"
+                      required
+                      value={form.room_number}
+                      onChange={(e) => setForm({ ...form, room_number: e.target.value })}
+                      placeholder="E-505"
+                      className="w-full rounded-xl bg-slate-950 border border-slate-800 p-3 text-white outline-none focus:border-teal-400"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-slate-400 font-bold mb-1 uppercase">Hotel Property</label>
+                    <select
+                      value={form.hotel_name}
+                      onChange={(e) => setForm({ ...form, hotel_name: e.target.value })}
+                      className="w-full rounded-xl bg-slate-950 border border-slate-800 p-3 text-white outline-none focus:border-teal-400"
+                    >
+                      {hotels.map((h) => (
+                        <option key={h.id} value={h.name}>{h.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-slate-400 font-bold mb-1 uppercase">Room Category</label>
+                    <input
+                      type="text"
+                      required
+                      value={form.room_type}
+                      onChange={(e) => setForm({ ...form, room_type: e.target.value })}
+                      placeholder="Presidential Suite"
+                      className="w-full rounded-xl bg-slate-950 border border-slate-800 p-3 text-white outline-none focus:border-teal-400"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-slate-400 font-bold mb-1 uppercase">Rate ($ / Night)</label>
+                    <input
+                      type="number"
+                      required
+                      value={form.price_per_night}
+                      onChange={(e) => setForm({ ...form, price_per_night: e.target.value })}
+                      className="w-full rounded-xl bg-slate-950 border border-slate-800 p-3 text-white outline-none focus:border-teal-400"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-slate-400 font-bold mb-1 uppercase">Description & Amenities</label>
+                  <textarea
+                    rows={3}
+                    value={form.description}
+                    onChange={(e) => setForm({ ...form, description: e.target.value })}
+                    placeholder="Jacuzzi, sunrise balcony, king bed..."
+                    className="w-full rounded-xl bg-slate-950 border border-slate-800 p-3 text-white outline-none focus:border-teal-400"
+                  />
+                </div>
+
+                <div className="flex justify-end gap-3 pt-3">
+                  <button
+                    type="button"
+                    onClick={() => setShowModal(false)}
+                    className="px-5 py-2.5 rounded-xl text-slate-400 font-semibold hover:bg-slate-800"
+                  >
+                    Cancel
+                  </button>
+                  <button type="submit" disabled={isSubmitting} className="btn-accent py-2.5 px-6">
+                    {isSubmitting ? 'Adding...' : '✨ Publish Room'}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
