@@ -11,9 +11,20 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/api': {
-        target: 'http://localhost:5000',
+        target: 'http://127.0.0.1:5000',
         changeOrigin: true,
-        rewrite: (path) => path,
+        secure: false,
+        configure: (proxy) => {
+          proxy.on('error', (err, req, res) => {
+            if (err.code === 'ECONNREFUSED') {
+              // Suppress verbose proxy connection logs when local API backend is offline/restarting
+              if (res && !res.headersSent) {
+                res.writeHead(503, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: false, message: 'Backend service offline or reconnecting' }));
+              }
+            }
+          });
+        },
       },
     },
   },
